@@ -21,10 +21,10 @@ require("lazy").setup({
 
 -- ---------- LSP: clangd ----------
 local lspconfig = require("lspconfig")
+-- Use default root detection to avoid deprecated lspconfig.util usage
 lspconfig.clangd.setup({
   cmd = { "clangd" },
   filetypes = { "c", "cpp", "objc", "objcpp" },
-  root_dir = lspconfig.util.root_pattern("compile_commands.json", ".git"),
 })
 
 -- ---------- Autocomplete ----------
@@ -48,6 +48,15 @@ require("nvim-treesitter.configs").setup({
   ensure_installed = { "cpp", "c", "lua", "vim", "python" },
   highlight = { enable = true },
 })
+
+-- Prefer working compilers on Windows for Treesitter
+-- Avoid picking a bare LLVM clang without SDK headers
+if vim.fn.has("win32") == 1 then
+  local ts_install = require("nvim-treesitter.install")
+  -- Order matters: try gcc (MSYS2), then cl (MSVC), then clang/zig
+  -- If you install MSYS2 or Build Tools, one of the first two will succeed.
+  ts_install.compilers = { "gcc", "cl", "clang", "zig" }
+end
 
 -- ---------- UI ----------
 vim.opt.number = true
