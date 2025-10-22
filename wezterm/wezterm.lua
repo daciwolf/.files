@@ -52,7 +52,15 @@ else
 end
 
 -- UI preferences
-config.color_scheme = "Gruvbox Dark"
+-- Prefer an Aura color scheme if present; otherwise fall back to Gruvbox
+local aura_scheme = nil
+local ok, builtin = pcall(wezterm.get_builtin_color_schemes)
+if ok and builtin then
+  for name, _ in pairs(builtin) do
+    if name:lower():find("aura") then aura_scheme = name; break end
+  end
+end
+config.color_scheme = aura_scheme or "Gruvbox Dark"
 config.font_size = 12.0
 config.use_fancy_tab_bar = false
 config.hide_tab_bar_if_only_one_tab = true

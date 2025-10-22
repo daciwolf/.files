@@ -185,3 +185,15 @@ ln -sf "$SCRIPT_DIR/../nvim/init.lua" "$CONFIG_DIR/nvim/init.lua"
 ln -sf "$SCRIPT_DIR/../wezterm/wezterm.lua" "$CONFIG_DIR/wezterm/wezterm.lua"
 
 echo "Configuration complete!"
+
+# -------- Post-install summary --------
+if [ -x "$HOME/.local/bin/nvim" ]; then
+  nvline="$($HOME/.local/bin/nvim --version 2>/dev/null | head -n1)"
+  echo "Local Neovim: $HOME/.local/bin/nvim -> ${nvline}"
+fi
+if [ -x "$HOME/.local/bin/clangd" ]; then
+  cline="$($HOME/.local/bin/clangd --version 2>/dev/null | head -n1)"
+  echo "Local clangd: $HOME/.local/bin/clangd -> ${cline}"
+fi
+echo "Current nvim resolved to: $(command -v nvim 2>/dev/null || echo 'not found')"
+echo "To use local tools now in this shell: export PATH=\"$HOME/.local/bin:$PATH\"; hash -r"
