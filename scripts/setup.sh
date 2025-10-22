@@ -1,15 +1,25 @@
 #!/usr/bin/env bash
-set -e
+
+# Enable strict mode only when executed directly, not when sourced.
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  set -euo pipefail
+fi
+
+# If sourced, re-run in a subshell so failures don't close the parent shell.
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+  bash "${BASH_SOURCE[0]}" "$@"
+  return
+fi
 
 echo "🔧 Starting portable dotfiles setup..."
 
 # Detect OS
 OS="$(uname -s)"
 case "$OS" in
-    Linux*)     MACHINE=Linux;;
-    Darwin*)    MACHINE=Mac;;
-    CYGWIN*|MINGW*|MSYS*) MACHINE=Windows;;
-    *)          MACHINE="UNKNOWN:$OS"
+  Linux*)     MACHINE=Linux;;
+  Darwin*)    MACHINE=Mac;;
+  CYGWIN*|MINGW*|MSYS*) MACHINE=Windows;;
+  *)          MACHINE="UNKNOWN:$OS";;
 esac
 echo "Detected OS: $MACHINE"
 
@@ -48,19 +58,45 @@ install_nvim_local() {
 
 # -------- Install clangd (local binary) --------
 install_clangd_local() {
-  if ! command -v clangd >/dev/null 2>&1; then
-    echo "Installing clangd locally..."
-    cd "$HOME/.local/bin"
-    if [[ "$MACHINE" == "Linux" ]]; then
-      wget -q https://github.com/clangd/clangd/releases/latest/download/clangd-linux.zip -O clangd.zip
-      unzip -q clangd.zip
-      mv clangd_*/* "$HOME/.local/"
-      rm -rf clangd_* clangd.zip
-    elif [[ "$MACHINE" == "Mac" ]]; then
-      brew install llvm || echo "Couldn't install clangd; please install manually"
-    fi
-  else
+  if command -v clangd >/dev/null 2>&1; then
     echo "clangd already installed"
+    return 0
+  fi
+
+  echo "Installing clangd locally..."
+  cd "$HOME/.local/bin"
+  if [[ "$MACHINE" == "Linux" ]]; then
+    if command -v wget >/dev/null 2>&1; then
+      wget -q https://github.com/clangd/clangd/releases/latest/download/clangd-linux.zip -O clangd.zip || { echo "Failed to download clangd (wget). Skipping."; return 0; }
+    elif command -v curl >/dev/null 2>&1; then
+      curl -fsSL https://github.com/clangd/clangd/releases/latest/download/clangd-linux.zip -o clangd.zip || { echo "Failed to download clangd (curl). Skipping."; return 0; }
+    else
+      echo "Neither wget nor curl found. Skipping clangd install."
+      return 0
+    fi
+
+    if command -v unzip >/dev/null 2>&1; then
+      unzip -q clangd.zip || { echo "unzip failed; skipping clangd install."; rm -f clangd.zip; return 0; }
+    elif command -v bsdtar >/dev/null 2>&1; then
+      bsdtar -xf clangd.zip || { echo "bsdtar failed; skipping clangd install."; rm -f clangd.zip; return 0; }
+    else
+      echo "No unzip/bsdtar found. Install 'unzip' and re-run for clangd."
+      rm -f clangd.zip
+      return 0
+    fi
+
+    extracted_dir="$(find . -maxdepth 1 -type d -name 'clangd_*' | head -n1)"
+    if [[ -n "$extracted_dir" ]]; then
+      mv "$extracted_dir"/* "$HOME/.local/" || true
+      rm -rf "$extracted_dir" clangd.zip || true
+    else
+      echo "Could not locate extracted clangd directory; skipping move."
+      rm -f clangd.zip || true
+    fi
+  elif [[ "$MACHINE" == "Mac" ]]; then
+    brew install llvm || echo "Couldn't install clangd; please install manually"
+  else
+    echo "clangd install skipped (unsupported on this platform)"
   fi
 }
 
@@ -96,8 +132,12 @@ else
   CONFIG_DIR="$HOME/.config"
 fi
 
+# Resolve this script's directory for robust linking regardless of CWD
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 mkdir -p "$CONFIG_DIR/nvim" "$CONFIG_DIR/wezterm"
-ln -sf "$(pwd)/../nvim/init.lua" "$CONFIG_DIR/nvim/init.lua"
-ln -sf "$(pwd)/../wezterm/wezterm.lua" "$CONFIG_DIR/wezterm/wezterm.lua"
+ln -sf "$SCRIPT_DIR/../nvim/init.lua" "$CONFIG_DIR/nvim/init.lua"
+ln -sf "$SCRIPT_DIR/../wezterm/wezterm.lua" "$CONFIG_DIR/wezterm/wezterm.lua"
 
 echo "Configuration complete!"
+
