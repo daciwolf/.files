@@ -13,6 +13,13 @@ fi
 
 echo "🔧 Starting portable dotfiles setup..."
 
+# Resolve absolute script directory early (before any cd's)
+if [[ "${BASH_SOURCE[0]}" = /* ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+  SCRIPT_DIR="$(cd "$(dirname "$PWD/${BASH_SOURCE[0]}")" && pwd)"
+fi
+
 # Detect OS
 OS="$(uname -s)"
 case "$OS" in
@@ -67,9 +74,9 @@ install_clangd_local() {
   cd "$HOME/.local/bin"
   if [[ "$MACHINE" == "Linux" ]]; then
     if command -v wget >/dev/null 2>&1; then
-      wget -q https://github.com/clangd/clangd/releases/latest/download/clangd-linux.zip -O clangd.zip || { echo "Failed to download clangd (wget). Skipping."; return 0; }
+      wget -q https://github.com/clangd/clangd/releases/download/21.1.0/clangd-linux-21.1.0.zip -O clangd.zip || { echo "Failed to download clangd (wget). Skipping."; return 0; }
     elif command -v curl >/dev/null 2>&1; then
-      curl -fsSL https://github.com/clangd/clangd/releases/latest/download/clangd-linux.zip -o clangd.zip || { echo "Failed to download clangd (curl). Skipping."; return 0; }
+      curl -fsSL https://github.com/clangd/clangd/releases/download/21.1.0/clangd-linux-21.1.0.zip -o clangd.zip || { echo "Failed to download clangd (curl). Skipping."; return 0; }
     else
       echo "Neither wget nor curl found. Skipping clangd install."
       return 0
@@ -132,12 +139,8 @@ else
   CONFIG_DIR="$HOME/.config"
 fi
 
-# Resolve this script's directory for robust linking regardless of CWD
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 mkdir -p "$CONFIG_DIR/nvim" "$CONFIG_DIR/wezterm"
 ln -sf "$SCRIPT_DIR/../nvim/init.lua" "$CONFIG_DIR/nvim/init.lua"
 ln -sf "$SCRIPT_DIR/../wezterm/wezterm.lua" "$CONFIG_DIR/wezterm/wezterm.lua"
 
 echo "Configuration complete!"
-
