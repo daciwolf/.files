@@ -44,19 +44,21 @@ done
 # -------- Install Neovim (local binary) --------
 install_nvim_local() {
   need_install=1
+  current_ver=""
   if command -v nvim >/dev/null 2>&1; then
     # Extract version like 0.9.5 from: NVIM v0.9.5
     current_ver=$(nvim --version 2>/dev/null | head -n1 | sed -E 's/.*v([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
     if [ -n "$current_ver" ]; then
-      # Compare using sort -V: if current >= 0.8.0, no install
-      if [ "$(printf '%s\n' "$current_ver" "0.8.0" | sort -V | head -n1)" != "0.8.0" ]; then
+      # If current >= 0.8.0 then skip install
+      latest_of_two=$(printf '%s\n' "$current_ver" "0.8.0" | sort -V | tail -n1)
+      if [ "$latest_of_two" = "$current_ver" ]; then
         need_install=0
       fi
     fi
   fi
 
   if [ "$need_install" -eq 0 ]; then
-    echo "Neovim already >= 0.8 (v$current_ver)"
+    echo "Neovim already >= 0.8 (v${current_ver})"
     return 0
   fi
 
@@ -83,6 +85,7 @@ install_nvim_local() {
       else
         ./nvim.appimage --appimage-extract >/dev/null 2>&1 || true
         if [ -d squashfs-root ]; then
+          rm -rf "$HOME/.local/nvim-appimage" 2>/dev/null || true
           mv squashfs-root "$HOME/.local/nvim-appimage" 2>/dev/null || true
           ln -sf "$HOME/.local/nvim-appimage/AppRun" "$HOME/.local/bin/nvim"
           rm -f nvim.appimage
@@ -129,8 +132,11 @@ install_clangd_local() {
 
     extracted_dir="$(find . -maxdepth 1 -type d -name 'clangd_*' | head -n1)"
     if [[ -n "$extracted_dir" ]]; then
-      mv "$extracted_dir"/* "$HOME/.local/" || true
-      rm -rf "$extracted_dir" clangd.zip || true
+      dest="$HOME/.local/clangd-dist"
+      rm -rf "$dest" 2>/dev/null || true
+      mv "$extracted_dir" "$dest" || true
+      ln -sf "$dest/bin/clangd" "$HOME/.local/bin/clangd" || true
+      rm -f clangd.zip || true
     else
       echo "Could not locate extracted clangd directory; skipping move."
       rm -f clangd.zip || true
