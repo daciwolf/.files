@@ -65,13 +65,13 @@ install_nvim_local() {
   echo "Installing Neovim locally..."
   cd "$HOME/.local/bin"
   if [[ "$MACHINE" == "Mac" ]]; then
-    curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-macos.tar.gz
+    curl -LO https://github.com/neovim/neovim/releases/download/v0.11.4/nvim-macos-arm64.tar.gz
     tar xzf nvim-macos.tar.gz
     mv nvim-macos/bin/nvim "$HOME/.local/bin/nvim"
     rm -rf nvim-macos nvim-macos.tar.gz
   elif [[ "$MACHINE" == "Linux" ]]; then
     # Try AppImage; if FUSE not available, extract and link
-    url=https://github.com/neovim/neovim/releases/latest/download/nvim.appimage
+    url=https://github.com/neovim/neovim/releases/download/v0.11.4/nvim-linux-x86_64.appimage
     if command -v curl >/dev/null 2>&1; then
       curl -fL "$url" -o nvim.appimage || true
     elif command -v wget >/dev/null 2>&1; then
