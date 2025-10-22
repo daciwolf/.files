@@ -11,7 +11,7 @@ if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
   return
 fi
 
-echo "🔧 Starting portable dotfiles setup..."
+echo "Starting portable dotfiles setup..."
 
 # Resolve absolute script directory early (before any cd's)
 if [[ "${BASH_SOURCE[0]}" = /* ]]; then
@@ -43,23 +43,58 @@ done
 
 # -------- Install Neovim (local binary) --------
 install_nvim_local() {
-  if ! command -v nvim >/dev/null 2>&1; then
-    echo "Installing Neovim locally..."
-    cd "$HOME/.local/bin"
-    if [[ "$MACHINE" == "Mac" ]]; then
-      curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-macos.tar.gz
-      tar xzf nvim-macos.tar.gz
-      mv nvim-macos/bin/nvim "$HOME/.local/bin/nvim"
-      rm -rf nvim-macos nvim-macos.tar.gz
-    elif [[ "$MACHINE" == "Linux" ]]; then
-      curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim.appimage
+  need_install=1
+  if command -v nvim >/dev/null 2>&1; then
+    # Extract version like 0.9.5 from: NVIM v0.9.5
+    current_ver=$(nvim --version 2>/dev/null | head -n1 | sed -E 's/.*v([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+    if [ -n "$current_ver" ]; then
+      # Compare using sort -V: if current >= 0.8.0, no install
+      if [ "$(printf '%s\n' "$current_ver" "0.8.0" | sort -V | head -n1)" != "0.8.0" ]; then
+        need_install=0
+      fi
+    fi
+  fi
+
+  if [ "$need_install" -eq 0 ]; then
+    echo "Neovim already >= 0.8 (v$current_ver)"
+    return 0
+  fi
+
+  echo "Installing Neovim locally..."
+  cd "$HOME/.local/bin"
+  if [[ "$MACHINE" == "Mac" ]]; then
+    curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-macos.tar.gz
+    tar xzf nvim-macos.tar.gz
+    mv nvim-macos/bin/nvim "$HOME/.local/bin/nvim"
+    rm -rf nvim-macos nvim-macos.tar.gz
+  elif [[ "$MACHINE" == "Linux" ]]; then
+    # Try AppImage; if FUSE not available, extract and link
+    url=https://github.com/neovim/neovim/releases/latest/download/nvim.appimage
+    if command -v curl >/dev/null 2>&1; then
+      curl -fL "$url" -o nvim.appimage || true
+    elif command -v wget >/dev/null 2>&1; then
+      wget -q "$url" -O nvim.appimage || true
+    fi
+    if [ -s nvim.appimage ]; then
       chmod u+x nvim.appimage
-      mv nvim.appimage nvim
+      # Try running to detect FUSE; if fails, extract
+      if ./nvim.appimage --version >/dev/null 2>&1; then
+        mv nvim.appimage nvim
+      else
+        ./nvim.appimage --appimage-extract >/dev/null 2>&1 || true
+        if [ -d squashfs-root ]; then
+          mv squashfs-root "$HOME/.local/nvim-appimage" 2>/dev/null || true
+          ln -sf "$HOME/.local/nvim-appimage/AppRun" "$HOME/.local/bin/nvim"
+          rm -f nvim.appimage
+        else
+          echo "Failed to extract AppImage; leaving system nvim in place."
+        fi
+      fi
     else
-      echo "Neovim install skipped (unsupported on this platform)"
+      echo "Failed to download Neovim AppImage."
     fi
   else
-    echo "Neovim already installed"
+    echo "Neovim install skipped (unsupported on this platform)"
   fi
 }
 
