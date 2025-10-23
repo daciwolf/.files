@@ -129,12 +129,35 @@ require("lazy").setup({
     end,
   },
   {
-    "baliestri/aura-theme",
+    "diegoulloao/neofusion.nvim",
     lazy = false,
     priority = 1000,
-    config = function(plugin)
-      vim.opt.rtp:append(plugin.dir .. "/packages/neovim")
-      vim.cmd([[colorscheme aura-dark]])
+    opts = {
+      terminal_colors = true,
+      undercurl = true,
+      underline = true,
+      bold = true,
+      italic = {
+        strings = true,
+        emphasis = true,
+        comments = true,
+        operators = false,
+        folds = true,
+      },
+      strikethrough = true,
+      invert_selection = false,
+      invert_signs = false,
+      invert_tabline = false,
+      invert_intend_guides = false,
+      inverse = true,
+      palette_overrides = {},
+      overrides = {},
+      dim_inactive = false,
+      transparent_mode = true,
+    },
+    config = function(_, opts)
+      require("neofusion").setup(opts)
+      vim.cmd([[colorscheme neofusion]])
     end,
   },
 })
